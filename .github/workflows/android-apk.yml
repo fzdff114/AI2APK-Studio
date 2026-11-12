@@ -1,0 +1,103 @@
+name: Build AI2APK Studio APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "source/bundle/**"
+      - ".github/workflows/android-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai2apk-android-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-debug-apk:
+    name: Compile and verify Debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "8.9"
+
+      - name: Set up Android SDK tools
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ""
+
+      - name: Reassemble and verify source archive
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cat source/bundle/part*.b64 > /tmp/ai2apk-source.tar.xz.b64
+          test "$(wc -c < /tmp/ai2apk-source.tar.xz.b64 | tr -d ' ')" = "41180"
+          base64 --decode /tmp/ai2apk-source.tar.xz.b64 > /tmp/ai2apk-source.tar.xz
+          echo "01edbd09c3fd3d41e0102fbfc9f3cef5b6e6294b3d4009c78ed8fe8e499f548f  /tmp/ai2apk-source.tar.xz" | sha256sum --check
+          tar -tJf /tmp/ai2apk-source.tar.xz >/dev/null
+          mkdir -p build-src
+          tar -xJf /tmp/ai2apk-source.tar.xz -C build-src
+          test -f build-src/AI2APK_Studio/settings.gradle.kts
+          test -f build-src/AI2APK_Studio/app/src/main/AndroidManifest.xml
+
+      - name: Run source smoke tests
+        working-directory: build-src/AI2APK_Studio
+        run: bash tools/smoke/run.sh
+
+      - name: Install Android platform and build tools
+        run: |
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          sdkmanager --list_installed
+
+      - name: Build APK
+        working-directory: build-src/AI2APK_Studio
+        run: gradle --no-daemon --stacktrace clean :app:assembleDebug
+
+      - name: Verify APK structure and signature
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          APK="build-src/AI2APK_Studio/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          unzip -tq "$APK"
+          unzip -Z1 "$APK" | grep -qx "AndroidManifest.xml"
+          unzip -Z1 "$APK" | grep -qx "classes.dex"
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          sha256sum "$APK" | tee build-src/AI2APK_Studio/app-debug.apk.sha256
+          ls -lh "$APK"
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI2APK-Studio-debug-apk
+          path: |
+            build-src/AI2APK_Studio/app/build/outputs/apk/debug/app-debug.apk
+            build-src/AI2APK_Studio/app-debug.apk.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI2APK-Studio-build-diagnostics
+          path: |
+            build-src/AI2APK_Studio/app/build/reports/
+            build-src/AI2APK_Studio/app/build/outputs/logs/
+          if-no-files-found: ignore
+          retention-days: 7
