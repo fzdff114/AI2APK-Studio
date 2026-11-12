@@ -55,6 +55,7 @@ jobs:
           test -f build-src/AI2APK_Studio/settings.gradle.kts
           test -f build-src/AI2APK_Studio/app/src/main/AndroidManifest.xml
           python3 source/patches/fix_gradle_kts_imports.py build-src/AI2APK_Studio/app/build.gradle.kts
+          python3 source/patches/android_compatibility.py build-src/AI2APK_Studio
 
       - name: Run source smoke tests
         working-directory: build-src/AI2APK_Studio
@@ -79,37 +80,37 @@ jobs:
           unzip -Z1 "$APK" | grep -qx "AndroidManifest.xml"
           unzip -Z1 "$APK" | grep -qx "classes.dex"
           BADGING="$("$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt" dump badging "$APK")"
-          echo "$BADGING" | grep -q "versionCode='10000' versionName='1.0.0'"
+          echo "$BADGING" | grep -q "versionCode='10001' versionName='1.0.1'"
           "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose "$APK"
           mkdir -p dist
-          cp "$APK" dist/AI2APK-Studio-1.0.0.apk
-          sha256sum dist/AI2APK-Studio-1.0.0.apk | tee dist/AI2APK-Studio-1.0.0.apk.sha256
+          cp "$APK" dist/AI2APK-Studio-1.0.1.apk
+          sha256sum dist/AI2APK-Studio-1.0.1.apk | tee dist/AI2APK-Studio-1.0.1.apk.sha256
           ls -lh dist/
 
       - name: Upload Debug APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AI2APK-Studio-1.0.0-pre-release
+          name: AI2APK-Studio-1.0.1-pre-release
           path: |
-            dist/AI2APK-Studio-1.0.0.apk
-            dist/AI2APK-Studio-1.0.0.apk.sha256
+            dist/AI2APK-Studio-1.0.1.apk
+            dist/AI2APK-Studio-1.0.1.apk.sha256
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish GitHub pre-release v1.0.0
+      - name: Publish GitHub pre-release v1.0.1
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -Eeuo pipefail
-          TAG="v1.0.0"
-          NOTES="AI2APK Studio 1.0.0 pre-release.\n\n- Built with GitHub Actions using JDK 17, Gradle 8.9 and Android SDK 35.\n- APK package version verified as 1.0.0 (versionCode 10000).\n- Debug-signed build for early testing; not a production/release-key signed package.\n- Please report installation or runtime issues before a stable release."
+          TAG="v1.0.1"
+          NOTES="AI2APK Studio 1.0.1 pre-release.\n\n- Built with GitHub Actions using JDK 17, Gradle 8.9 and Android SDK 35.\n- APK package version verified as 1.0.1 (versionCode 10001).\n- Debug-signed build for early testing; not a production/release-key signed package.\n- Please report installation or runtime issues before a stable release."
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "AI2APK Studio 1.0.0" --notes "$NOTES" --prerelease
-            gh release upload "$TAG" dist/AI2APK-Studio-1.0.0.apk dist/AI2APK-Studio-1.0.0.apk.sha256 --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "AI2APK Studio 1.0.1" --notes "$NOTES" --prerelease
+            gh release upload "$TAG" dist/AI2APK-Studio-1.0.1.apk dist/AI2APK-Studio-1.0.1.apk.sha256 --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$TAG" dist/AI2APK-Studio-1.0.0.apk dist/AI2APK-Studio-1.0.0.apk.sha256 --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "AI2APK Studio 1.0.0" --prerelease --notes "$NOTES"
+            gh release create "$TAG" dist/AI2APK-Studio-1.0.1.apk dist/AI2APK-Studio-1.0.1.apk.sha256 --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "AI2APK Studio 1.0.1" --prerelease --notes "$NOTES"
           fi
 
       - name: Upload build diagnostics on failure
