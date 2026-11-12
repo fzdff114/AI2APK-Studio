@@ -32,7 +32,7 @@ if exclude.strip() not in source:
         raise SystemExit("patch failed; Android packaging.resources block was not found")
     source = source.replace(needle, needle + exclude, 1)
 
-# The GitHub pre-release is 1.0.0, so align the Android package's own version
+# The GitHub pre-release is 1.0.1, so align the Android package's own version
 # rather than only changing the GitHub Release title.
 def replace_or_insert(pattern: str, replacement: str, label: str) -> None:
     global source
@@ -48,20 +48,20 @@ def replace_or_insert(pattern: str, replacement: str, label: str) -> None:
     pos = block.end()
     source = source[:pos] + "\n" + insertion + source[pos:]
 
-replace_or_insert(r"^(\s*versionCode\s*=\s*)\d+\s*$", r"\g<1>10000", "versionCode = 10000")
-replace_or_insert(r'^(\s*versionName\s*=\s*)["\'][^"\']*["\']\s*$', r'\g<1>"1.0.0"', 'versionName = "1.0.0"')
+replace_or_insert(r"^(\s*versionCode\s*=\s*)\d+\s*$", r"\g<1>10001", "versionCode = 10001")
+replace_or_insert(r'^(\s*versionName\s*=\s*)["\'][^"\']*["\']\s*$', r'\g<1>"1.0.1"', 'versionName = "1.0.1"')
 
 required = [
     "URL(",
     "MessageDigest.getInstance",
     "ZipFile(aapt2Aar)",
     "META-INF/versions/9/OSGI-INF/MANIFEST.MF",
-    "versionCode = 10000",
-    'versionName = "1.0.0"',
+    "versionCode = 10001",
+    'versionName = "1.0.1"',
 ]
 missing = [item for item in required if item not in source]
 if missing:
     raise SystemExit("patch failed; missing expected symbols: " + ", ".join(missing))
 
 path.write_text(source, encoding="utf-8")
-print("Patched Kotlin DSL imports, duplicate Bouncy Castle metadata, and app version 1.0.0.")
+print("Patched Kotlin DSL imports, duplicate Bouncy Castle metadata, and app version 1.0.1.")
