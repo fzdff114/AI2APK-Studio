@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "source/bundle/**"
+      - "source/**"
       - ".github/workflows/android-apk.yml"
   workflow_dispatch:
 
@@ -54,6 +54,7 @@ jobs:
           tar -xJf /tmp/ai2apk-source.tar.xz -C build-src
           test -f build-src/AI2APK_Studio/settings.gradle.kts
           test -f build-src/AI2APK_Studio/app/src/main/AndroidManifest.xml
+          python3 source/patches/fix_gradle_kts_imports.py build-src/AI2APK_Studio/app/build.gradle.kts
 
       - name: Run source smoke tests
         working-directory: build-src/AI2APK_Studio
